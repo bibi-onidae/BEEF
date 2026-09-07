@@ -2,7 +2,7 @@
 
 https://bibi-onidae.github.io/BEEF/
 
-cond1.html : text_high_cert
+cond1.html : text_high_cert /n
 cond2.html : text_high_self
 cond3.html : text_low_cert
 cond4.html : text_low_self
