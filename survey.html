@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>온라인 신선식품 구매 인식 조사</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+:root{
+  --bg:#fafaf9; --surface:#ffffff;
+  --ink:#1c1c1e; --ink-2:#55565a; --ink-3:#8a8b8f;
+  --line:#e6e6e4; --line-2:#d1d1cf;
+  --accent:#3d3d40; --accent-soft:#f1f1ef; --accent-line:#a9a9a7;
+  --warn:#b3392c;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{
+  font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Malgun Gothic',sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.7;
+  -webkit-font-smoothing:antialiased;
+}
+button{font-family:inherit;}
+
+/* 진행 표시 */
+#progress{position:fixed;top:0;left:0;right:0;height:3px;background:var(--line);z-index:50;}
+#progress div{height:100%;width:0;background:var(--accent);transition:width .35s ease;}
+@media (prefers-reduced-motion:reduce){#progress div{transition:none;}}
+
+#app{max-width:900px;margin:0 auto;padding:64px 24px 120px;}
+h1.title,.q-text,.lead,.stmt,.grid-head span,.opts label{word-break:keep-all;overflow-wrap:break-word;}
+
+.step{font-size:13px;color:var(--ink-3);letter-spacing:.02em;margin-bottom:10px;}
+h1.title{font-size:25px;font-weight:700;letter-spacing:-.4px;line-height:1.45;margin-bottom:22px;}
+.lead{font-size:16px;color:var(--ink-2);max-width:60ch;}
+.lead p+p{margin-top:14px;}
+.lead strong{color:var(--ink);font-weight:600;}
+.meta{font-size:13.5px;color:var(--ink-3);line-height:1.75;margin-top:26px;max-width:62ch;
+  padding-top:20px;border-top:1px solid var(--line);}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:26px 28px;margin:22px 0;}
+.panel dl{display:grid;grid-template-columns:96px 1fr;row-gap:10px;font-size:15px;}
+.panel dt{color:var(--ink-3);}
+.panel dd{color:var(--ink-2);}
+
+.q{margin:38px 0;}
+.q-text{font-size:18px;font-weight:600;line-height:1.6;letter-spacing:-.2px;margin-bottom:18px;
+  max-width:62ch;}
+.q-note{font-size:14px;color:var(--ink-3);font-weight:400;display:block;margin-top:6px;}
+.q.missing .q-text{color:var(--warn);}
+.q.missing .grid,.q.missing .opts{outline:1px solid var(--warn);outline-offset:8px;border-radius:4px;}
+
+/* 단일선택 */
+.opts{display:flex;flex-direction:column;gap:2px;}
+.opts label{
+  display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-radius:5px;
+  font-size:16px;color:var(--ink-2);cursor:pointer;transition:background .12s;
+}
+.opts label:hover{background:var(--accent-soft);}
+.opts input{margin-top:5px;accent-color:var(--accent);flex:none;}
+.opts input:checked+span{color:var(--ink);font-weight:500;}
+.opts.horiz{flex-direction:row;gap:6px;}
+.opts.horiz label{flex:1;flex-direction:column;align-items:center;text-align:center;gap:8px;
+  border:1px solid var(--line);padding:14px 6px;font-size:14px;line-height:1.4;}
+.opts.horiz input{margin:0;}
+
+/* 매트릭스 */
+.grid{border-top:1px solid var(--line-2);}
+.grid-head{
+  display:grid;grid-template-columns:var(--cols);
+  position:sticky;top:3px;background:var(--bg);z-index:10;
+  border-bottom:1px solid var(--line);
+}
+.grid-head span{
+  font-size:11.5px;color:var(--ink-3);text-align:center;padding:11px 4px;line-height:1.35;
+  display:flex;align-items:center;justify-content:center;
+}
+.grid-row{display:grid;grid-template-columns:var(--cols);align-items:center;border-bottom:1px solid var(--line);}
+.grid-row:nth-child(even){background:#f6f6f4;}
+.grid-row .stmt{font-size:15.5px;color:var(--ink-2);padding:15px 20px 15px 4px;line-height:1.6;}
+.grid-row .stmt.right{text-align:right;padding:15px 4px 15px 20px;}
+.grid-row .cells{display:contents;}
+.grid-row .cell{display:flex;align-items:center;justify-content:center;padding:14px 0;cursor:pointer;height:100%;}
+.grid-row .cell i{display:none;}
+.grid-row .cell:hover{background:var(--accent-soft);}
+.grid-row input{accent-color:var(--accent);width:17px;height:17px;cursor:pointer;}
+
+/* 서술형 */
+textarea,input[type=text],input[type=tel]{
+  width:100%;font-family:inherit;font-size:16px;color:var(--ink);line-height:1.6;
+  border:1px solid var(--line-2);border-radius:5px;padding:12px 14px;background:var(--surface);
+  resize:vertical;
+}
+textarea:focus,input:focus{outline:2px solid var(--accent-line);outline-offset:1px;border-color:var(--accent);}
+.thought-row{display:flex;gap:12px;align-items:flex-start;margin-bottom:10px;}
+.thought-row .num{font-size:14px;color:var(--ink-3);padding-top:14px;width:20px;flex:none;}
+.linkish{background:none;border:none;color:var(--accent);font-size:15px;cursor:pointer;padding:6px 0;text-decoration:underline;}
+
+/* 버튼 */
+.nav{margin-top:44px;display:flex;align-items:center;gap:16px;}
+.btn{
+  border:1px solid var(--accent);background:var(--accent);color:#fff;
+  font-size:16px;font-weight:600;padding:14px 34px;border-radius:5px;cursor:pointer;
+  transition:opacity .15s;
+}
+.btn:hover{opacity:.88;}
+.btn:disabled{background:var(--line-2);border-color:var(--line-2);color:#fff;cursor:not-allowed;opacity:1;}
+.btn.ghost{background:none;color:var(--ink-2);border-color:var(--line-2);}
+.hint{font-size:14px;color:var(--ink-3);}
+.hint.alert{color:var(--warn);}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* 자극물 노출 화면 */
+body.stim-mode{overflow:hidden;}
+body.stim-mode #app{display:none;}
+#stim{display:none;position:fixed;inset:0;z-index:100;background:#fff;flex-direction:column;}
+body.stim-mode #stim{display:flex;}
+#stimTop{
+  flex:none;height:44px;background:var(--ink);color:#fff;display:flex;align-items:center;
+  padding:0 20px;font-size:14px;gap:10px;
+}
+#stimTop b{font-weight:600;}
+#stimFrame{flex:1;width:100%;border:0;}
+#stimBar{
+  flex:none;background:var(--surface);border-top:1px solid var(--line-2);
+  padding:14px 20px;display:flex;align-items:center;justify-content:flex-end;gap:18px;
+  box-shadow:0 -2px 12px rgba(0,0,0,.05);
+}
+#stimHint{font-size:14px;color:var(--ink-3);margin-right:auto;}
+
+@media (max-width:880px){
+  #app{padding:48px 18px 100px;}
+  h1.title{font-size:22px;}
+  .grid-head{display:none;}
+  .grid-row{grid-template-columns:1fr !important;border-bottom:1px solid var(--line-2);padding-bottom:10px;}
+  .grid-row .stmt,.grid-row .stmt.right{padding:14px 2px 6px;text-align:left;}
+  .grid-row .cells{display:flex;justify-content:space-between;gap:2px;}
+  .grid-row .cell{flex:1;flex-direction:column;gap:5px;padding:6px 2px;}
+  .grid-row .cell i{display:block;font-size:10.5px;font-style:normal;color:var(--ink-3);
+    text-align:center;line-height:1.25;}
+  .opts.horiz{flex-wrap:wrap;}
+  .opts.horiz label{flex:1 1 30%;}
+}
+</style>
+</head>
+<body>
+
+<div id="progress"><div></div></div>
+<main id="app"></main>
+
+<div id="stim">
+  <div id="stimTop"><b>상품 페이지</b><span>실제로 구매할지 고민한다고 생각하고 충분히 살펴봐 주세요.</span></div>
+  <iframe id="stimFrame" title="상품 페이지"></iframe>
+  <div id="stimBar">
+    <span id="stimHint"></span>
+    <button class="btn" id="stimNext" disabled>설문 계속하기</button>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   설정 — 여기 세 줄만 바꾸면 됩니다
+   ══════════════════════════════════════════════════════════════ */
+
+// Apps Script 배포 후 받은 /exec URL
+var ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_EXEC_URL_HERE';
+
+// 텍스트 조건의 최소 열람 시간(초).
+// ★ 영상 길이와 같게 맞추세요. 안 맞추면 조건 간 노출량이 달라집니다.
+var MIN_TEXT_SEC = 60;
+
+// 영상 조건에서 '봤다'고 인정할 커버리지 비율
+var VIDEO_COVER_RATIO = 0.9;
+
+// 영상이 안 열리는 등 사고 대비 — 이 시간이 지나면 무조건 버튼 활성화(로그에 기록됨)
+var HARD_OVERRIDE_SEC = 300;
+
+/* ══════════════════════════════════════════════════════════════ */
+
+var CONDITIONS = [
+  {id:'1THC', modality:'text',  price:'high', source:'cert'},
+  {id:'2THS', modality:'text',  price:'high', source:'self'},
+  {id:'3TLC', modality:'text',  price:'low',  source:'cert'},
+  {id:'4TLS', modality:'text',  price:'low',  source:'self'},
+  {id:'5VHC', modality:'video', price:'high', source:'cert'},
+  {id:'6VHS', modality:'video', price:'high', source:'self'},
+  {id:'7VLC', modality:'video', price:'low',  source:'cert'},
+  {id:'8VLS', modality:'video', price:'low',  source:'self'}
+];
+
+var LIKERT7 = ['전혀 그렇지 않다','그렇지 않다','약간 그렇지 않다','보통이다','약간 그렇다','그렇다','매우 그렇다'];
+var NUM7 = ['1','2','3','4','5','6','7'];
+
+/* ── 상태 ─────────────────────────────────────────────────────── */
+
+var S = {
+  pid: null,
+  finished: false,
+  cond: null,
+  assignMethod: '',
+  answers: {},
+  qualOrder: [],
+  startedAt: Date.now(),
+  screenEnter: Date.now(),
+  pageTimes: {},
+  stim: {
+    dwellMs:0, scrollMax:0, override:false,
+    vidDuration:null, vidCovered:0, vidPlay:0, vidPause:0, vidSeek:0, vidEnded:0
+  }
+};
+
+function uid(){
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID().slice(0,8);
+  return Math.random().toString(36).slice(2,10);
+}
+
+/* ── 화면 정의 ─────────────────────────────────────────────────── */
+
+var SCREENS = [];
+
+SCREENS.push({
+  id:'intro', title:'연구 참여 안내', bare:true,
+  html:
+    '<p>본 연구는 온라인 신선식품 구매 상황에서 스마트 패키지에 대한 소비자 인식을 알아보기 위한 학술 연구입니다. '+
+    '가상의 온라인 쇼핑몰 상품 페이지를 살펴보신 뒤 질문에 답해 주시면 되며, 약 7~10분 걸립니다.</p>'+
+    '<p>모든 응답은 익명으로 수집되어 연구 목적으로만 사용되며, 개인을 식별할 수 있는 정보는 수집하지 않습니다.</p>'+
+    '<p>설문에 제시되는 쇼핑몰과 상품 정보는 연구를 위해 제작된 가상의 자료이며, 일부 이미지와 영상은 AI로 생성되었습니다. '+
+    '실제 판매 중인 상품이나 업체와는 관련이 없습니다.</p>'+
+    '<p>설문을 끝까지 완료하신 분께는 감사의 의미로 커피 기프티콘을 보내드립니다.</p>',
+  questions:[
+    {key:'consent', type:'radio', required:true,
+     text:'위 내용을 읽고 이해하였으며, 연구 참여에 동의하십니까?',
+     options:['동의합니다.','동의하지 않습니다.'],
+     gate:function(v){ return v===2 ? '참여에 동의하지 않으셨습니다. 창을 닫으셔도 됩니다. 시간 내주셔서 감사합니다.' : null; }}
+  ]
+});
+
+SCREENS.push({
+  id:'device',
+  questions:[
+    {key:'device', type:'radio', required:true,
+     text:'본 연구는 화면 크기가 결과에 영향을 줄 수 있어 데스크톱 또는 노트북 컴퓨터에서만 참여가 가능합니다. 지금 컴퓨터로 참여하고 계신가요?',
+     options:['네, 컴퓨터로 참여하고 있습니다','아니요, 스마트폰으로 참여하고 있습니다'],
+     gate:function(v){ return v===2 ? '이 연구는 컴퓨터에서만 참여할 수 있습니다. 데스크톱이나 노트북에서 다시 접속해 주세요. 감사합니다.' : null; }}
+  ]
+});
+
+SCREENS.push({
+  id:'instruct', bare:true,
+  html:
+    '<p>집에서 직접 구워 드실 <strong>소고기를 온라인으로 사려고 합니다.</strong></p>'+
+    '<p>다음 화면에서 상품 페이지가 열립니다. 실제로 이 상품을 구매할지 고민한다고 생각하시고 <strong>페이지를 끝까지 충분히 살펴봐 주세요.</strong></p>'+
+    '<p>페이지를 닫은 뒤에는 <strong>다시 볼 수 없습니다.</strong> 이후 설문은 기억에 남은 인상을 바탕으로 진행됩니다.</p>',
+  next:'상품 페이지 열기'
+});
+
+SCREENS.push({ id:'stimulus', special:'stimulus' });
+
+SCREENS.push({
+  id:'thoughts',
+  questions:[
+    {key:'thoughts', type:'textlist', required:true, min:1, slots:3, max:8,
+     text:'방금 보신 상품 페이지를 살펴보시는 동안 머릿속에 떠올랐던 생각을 있는 그대로 적어주세요.',
+     note:'떠올랐던 순서대로, 무엇이든 자유롭게 적어주세요. 한 칸에 하나씩이면 됩니다.'}
+  ]
+});
+
+SCREENS.push({
+  id:'presence',
+  questions:[
+    {key:'pres', type:'likert', required:true,
+     text:'방금 보신 상품 페이지에서, 스마트 패키징에 대한 내용을 떠올려 답해 주세요.',
+     items:[
+       '제시된 스마트 패키징 정보가 실제처럼 느껴졌다',
+       '제시된 내용이 현실과 비슷했다',
+       '스마트 패키징이 실제로 작동하는 모습처럼 느껴졌다',
+       '제시된 내용이 내가 아는 현실의 다른 경험들과 부합했다',
+       '정보를 보는 동안, 그 내용이 실제로 일어나고 있는 일처럼 느껴진 순간이 있었다'
+     ]}
+  ]
+});
+
+SCREENS.push({
+  id:'authority',
+  questions:[
+    {key:'auth', type:'bipolar', required:true,
+     text:'방금 보신 스마트 패키징 정보를 보증하는 곳은 어떻다고 느끼셨습니까?',
+     note:'더 가깝다고 느끼는 쪽을 선택하십시오.',
+     items:[
+       ['전문적이지 않다','전문적이다'],
+       ['경험이 없다','경험이 많다'],
+       ['지식이 부족하다','지식이 풍부하다'],
+       ['자격이 없다','자격이 있다'],
+       ['역량이 부족하다','역량이 뛰어나다']
+     ]}
+  ]
+});
+
+SCREENS.push({
+  id:'credibility',
+  questions:[
+    {key:'cred', type:'likert', required:true,
+     text:'방금 보신 스마트 패키징 정보를 다음 표현들이 얼마나 잘 설명합니까?',
+     items:['정확하다','진실되다','믿을 만하다']}
+  ]
+});
+
+// 종속변수: 1번 문항 고정, 나머지 랜덤 (Qualtrics FixedOrder 설정과 동일)
+var QUALITY_ITEMS = [
+  {id:'1',  text:'전반적인 품질이 좋을 것 이다'},
+  {id:'2',  text:'맛이 좋을 것이다'},
+  {id:'3',  text:'육질이 연하고 육즙이 풍부할 것이다'},
+  {id:'4',  text:'영양가가 높을 것이다'},
+  {id:'5',  text:'건강에 좋을 것이다'},
+  {id:'6',  text:'신선한 상태로 도착할 것이다'},
+  {id:'12', text:'보관 상태가 잘 관리된 고기일 것이다'},
+  {id:'13', text:'손질이나 준비에 손이 덜 갈 것이다'},
+  {id:'14', text:'보관하고 관리하기 수월할 것이다'},
+  {id:'15', text:'위생적으로 관리된 유통 과정을 거쳤을 것이다'},
+  {id:'16', text:'생산 및 유통 과정이 믿을 만 하다'}
+];
+
+SCREENS.push({
+  id:'quality',
+  questions:[
+    {key:'qual', type:'likert', required:true, shuffle:'fixFirst', pool:QUALITY_ITEMS,
+     text:'상품 페이지의 소고기를 구매한다면 어떨 것이라고 기대하시는지 응답해 주세요.'}
+  ]
+});
+
+SCREENS.push({
+  id:'mcheck',
+  questions:[
+    {key:'mc_modality', type:'radio', required:true,
+     text:'상품페이지에서 스마트 패키징 관련 내용을 어떤 형태로 보셨습니까?',
+     options:['영상 (비디오)','글 (텍스트)','기억나지 않음']},
+    {key:'mc_cert', type:'radio', required:true,
+     text:'스마트 패키징 관련 내용에 외부 인증기관의 인증마크가 표시되어 있었습니까?',
+     options:['표시되어 있었다','표시되어 있지 않았다','기억나지 않음']}
+  ]
+});
+
+SCREENS.push({
+  id:'price',
+  questions:[
+    {key:'price_perc', type:'radio', horiz:true, required:true,
+     text:'방금 보신 상품의 가격에 대해 어떻게 느끼셨습니까?',
+     options:['매우 저렴하다','저렴하다','조금 저렴하다','보통이다','조금 비싸다','비싸다','매우 비싸다']}
+  ]
+});
+
+SCREENS.push({
+  id:'involve',
+  questions:[
+    {key:'inv', type:'bipolar', required:true,
+     text:'판매자가 제공한 신선도·유통 관련 정보는 당신에게 어떠했습니까?',
+     note:'더 가깝다고 느끼는 쪽을 선택하십시오.',
+     items:[
+       ['나와 관련이 없었다','나와 관련이 있었다'],
+       ['나의 관심사가 아니였다','나의 관심사 였다'],
+       ['나에게 중요하지 않았다','나에게 중요했다'],
+       ['나에게 의미가 없었다','나에게 의미가 컸다']
+     ]},
+    {key:'freq_beef', type:'radio', required:true,
+     text:'가정에서 드실 소고기를 얼마나 자주 구매하십니까?',
+     options:['거의 구매하지 않는다','몇 달에 한 번','한 달에 한 번 정도','2주에 한 번 정도','일주일에 한 번 이상']},
+    {key:'freq_online', type:'radio', required:true,
+     text:'온라인(쿠팡, 마켓컬리, 네이버쇼핑 등)으로 정육·수산물 등 신선식품을 얼마나 자주 구매하십니까?',
+     options:['구매해 본 적 없다','연 몇 회','월 1회 정도','월 2~3회','주 1회 이상']}
+  ]
+});
+
+SCREENS.push({
+  id:'demo',
+  questions:[
+    {key:'gender', type:'radio', required:true, text:'귀하의 성별은 무엇입니까?',
+     options:['남성','여성','응답하지 않음']},
+    {key:'age', type:'radio', required:true, text:'귀하의 연령대는 어떻게 되십니까?',
+     options:['만 19세 미만','20대','30대','40대','50대','60대 이상']},
+    {key:'household', type:'radio', required:true, text:'귀하의 가구 형태는 어떻게 되십니까?',
+     options:['1인 가구','2인 가구','3인 이상 가구']}
+  ],
+  next:'응답 제출하기',
+  submit:true
+});
+
+/* ── 렌더링 ────────────────────────────────────────────────────── */
+
+var idx = 0;
+var app = document.getElementById('app');
+var bar = document.querySelector('#progress div');
+
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+function setProgress(){ bar.style.width = Math.round(idx / (SCREENS.length-1) * 100) + '%'; }
+
+function render(){
+  var sc = SCREENS[idx];
+  S.screenEnter = Date.now();
+  setProgress();
+  window.scrollTo(0,0);
+
+  if (sc.special === 'stimulus') return renderStimulus();
+
+  var h = '';
+  if (!sc.bare) h += '<p class="step">'+ (idx) +' / '+ (SCREENS.length-1) +'</p>';
+  if (sc.title) h += '<h1 class="title">'+ esc(sc.title) +'</h1>';
+  if (sc.html)  h += '<div class="lead">'+ sc.html +'</div>';
+
+  (sc.questions||[]).forEach(function(q){ h += renderQuestion(q); });
+
+  h += '<div class="nav"><button class="btn" id="nextBtn">'+ esc(sc.next || '다음') +'</button>'+
+       '<span class="hint" id="navHint"></span></div>';
+
+  app.innerHTML = h;
+  bindQuestions(sc);
+  document.getElementById('nextBtn').onclick = function(){ onNext(sc); };
+}
+
+function renderQuestion(q){
+  var h = '<section class="q" data-key="'+ q.key +'">';
+  h += '<div class="q-text">'+ esc(q.text||'');
+  if (q.note) h += '<span class="q-note">'+ esc(q.note) +'</span>';
+  h += '</div>';
+
+  if (q.type === 'radio'){
+    h += '<div class="opts'+ (q.horiz?' horiz':'') +'">';
+    q.options.forEach(function(opt,i){
+      h += '<label><input type="radio" name="'+q.key+'" value="'+(i+1)+'"><span>'+esc(opt)+'</span></label>';
+    });
+    h += '</div>';
+
+  } else if (q.type === 'likert'){
+    var items = q.items ? q.items.map(function(t,i){ return {id:String(i+1), text:t}; }) : shuffleItems(q);
+    q._items = items;
+    h += matrix(q.key, items, LIKERT7, false);
+
+  } else if (q.type === 'bipolar'){
+    q._items = q.items.map(function(p,i){ return {id:String(i+1), text:p[0], right:p[1]}; });
+    h += matrix(q.key, q._items, NUM7, true);
+
+  } else if (q.type === 'textlist'){
+    h += '<div id="tl-'+q.key+'">';
+    for (var i=0;i<q.slots;i++){
+      h += '<div class="thought-row"><span class="num">'+(i+1)+'</span>'+
+           '<textarea rows="2" data-tl="'+q.key+'"></textarea></div>';
+    }
+    h += '</div><button class="linkish" id="tlAdd-'+q.key+'">+ 생각 더 적기</button>';
+
+  } else if (q.type === 'tel'){
+    h += '<input type="tel" name="'+q.key+'" placeholder="010-0000-0000" autocomplete="tel">';
+  }
+
+  h += '</section>';
+  return h;
+}
+
+function matrix(key, items, scale, bipolar){
+  var cols = bipolar
+    ? 'minmax(140px,1fr) repeat(7,54px) minmax(140px,1fr)'
+    : 'minmax(240px,1fr) repeat(7,80px)';
+  var h = '<div class="grid" style="--cols:'+cols+'">';
+
+  h += '<div class="grid-head"><span></span>';
+  scale.forEach(function(s){ h += '<span>'+ esc(s).replace(/\n/g,'<br>') +'</span>'; });
+  if (bipolar) h += '<span></span>';
+  h += '</div>';
+
+  items.forEach(function(it){
+    h += '<div class="grid-row">';
+    h += '<div class="stmt">'+ esc(it.text) +'</div>';
+    h += '<div class="cells">';
+    for (var v=1; v<=7; v++){
+      h += '<label class="cell" title="'+ esc(scale[v-1].replace(/\n/g,' ')) +'">'+
+           '<input type="radio" name="'+key+'_'+it.id+'" value="'+v+'">'+
+           '<i>'+ esc(scale[v-1].replace(/\n/g,' ')) +'</i></label>';
+    }
+    h += '</div>';
+    if (bipolar) h += '<div class="stmt right">'+ esc(it.right) +'</div>';
+    h += '</div>';
+  });
+
+  return h + '</div>';
+}
+
+function shuffleItems(q){
+  var pool = q.pool.slice();
+  var first = pool.shift();                       // 1번 문항 고정
+  for (var i=pool.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t = pool[i]; pool[i]=pool[j]; pool[j]=t;
+  }
+  var out = [first].concat(pool);
+  S.qualOrder = out.map(function(x){ return x.id; });
+  return out;
+}
+
+function bindQuestions(sc){
+  (sc.questions||[]).forEach(function(q){
+    if (q.type !== 'textlist') return;
+    var wrap = document.getElementById('tl-'+q.key);
+    document.getElementById('tlAdd-'+q.key).onclick = function(){
+      var n = wrap.children.length;
+      if (n >= q.max){ this.style.display='none'; return; }
+      var row = document.createElement('div');
+      row.className = 'thought-row';
+      row.innerHTML = '<span class="num">'+(n+1)+'</span><textarea rows="2" data-tl="'+q.key+'"></textarea>';
+      wrap.appendChild(row);
+      row.querySelector('textarea').focus();
+      if (n+1 >= q.max) this.style.display='none';
+    };
+  });
+}
+
+/* ── 응답 수집 및 검증 ─────────────────────────────────────────── */
+
+function collect(q){
+  if (q.type === 'radio'){
+    var el = document.querySelector('input[name="'+q.key+'"]:checked');
+    return el ? Number(el.value) : null;
+  }
+  if (q.type === 'likert' || q.type === 'bipolar'){
+    var out = {}, missing = false;
+    q._items.forEach(function(it){
+      var e = document.querySelector('input[name="'+q.key+'_'+it.id+'"]:checked');
+      if (e) out[it.id] = Number(e.value); else missing = true;
+    });
+    return missing ? {_partial:out} : out;
+  }
+  if (q.type === 'textlist'){
+    var vals = [].slice.call(document.querySelectorAll('[data-tl="'+q.key+'"]'))
+                 .map(function(t){ return t.value.trim(); })
+                 .filter(function(v){ return v; });
+    return vals;
+  }
+  if (q.type === 'tel'){
+    var t = document.querySelector('input[name="'+q.key+'"]');
+    return t ? t.value.trim() : '';
+  }
+  return null;
+}
+
+function isAnswered(q, val){
+  if (!q.required) return true;
+  if (q.type === 'radio') return val !== null;
+  if (q.type === 'likert' || q.type === 'bipolar') return val && !val._partial;
+  if (q.type === 'textlist') return val.length >= (q.min||1);
+  return true;
+}
+
+function onNext(sc){
+  var firstBad = null;
+
+  (sc.questions||[]).forEach(function(q){
+    var val = collect(q);
+    var sect = document.querySelector('.q[data-key="'+q.key+'"]');
+
+    if (!isAnswered(q, val)){
+      sect.classList.add('missing');
+      if (!firstBad) firstBad = sect;
+      return;
+    }
+    sect.classList.remove('missing');
+
+    if (q.type === 'likert' || q.type === 'bipolar'){
+      var obj = (val && val._partial) ? val._partial : val;
+      Object.keys(obj).forEach(function(k){ S.answers[q.key+'_'+k] = obj[k]; });
+    } else if (q.type === 'textlist'){
+      val.forEach(function(v,i){ S.answers[q.key+(i+1)] = v; });
+      S.answers[q.key+'_count'] = val.length;
+    } else {
+      S.answers[q.key] = val;
+    }
+  });
+
+  if (firstBad){
+    document.getElementById('navHint').textContent = '표시된 문항에 응답해 주세요.';
+    document.getElementById('navHint').className = 'hint alert';
+    firstBad.scrollIntoView({block:'center'});
+    return;
+  }
+
+  // 종료 조건 (동의 거부 / 모바일)
+  var stop = null;
+  (sc.questions||[]).forEach(function(q){
+    if (q.gate){ var m = q.gate(S.answers[q.key]); if (m) stop = m; }
+  });
+  if (stop) return showEnd(stop, false);
+
+  S.pageTimes[sc.id] = Math.round((Date.now() - S.screenEnter)/1000);
+
+  if (sc.submit) return submit();
+
+  idx++;
+  render();
+}
+
+/* ── 자극물 화면 ───────────────────────────────────────────────── */
+
+function renderStimulus(){
+  document.body.classList.add('stim-mode');
+  var frame  = document.getElementById('stimFrame');
+  var btn    = document.getElementById('stimNext');
+  var hint   = document.getElementById('stimHint');
+  var isVid  = S.cond.modality === 'video';
+  var enter  = Date.now();
+  var covered = {};   // 영상 1초 단위 커버리지
+  var ready = false;
+
+  frame.src = S.cond.id + '.html';
+
+  frame.onload = function(){
+    var doc, win;
+    try { doc = frame.contentDocument; win = frame.contentWindow; }
+    catch(e){ doc = null; }
+    if (!doc) return;   // 접근 실패 시 시간 기준으로만 게이트
+
+    win.addEventListener('scroll', function(){
+      var el = doc.documentElement;
+      var max = el.scrollHeight - win.innerHeight;
+      if (max > 0){
+        var pct = Math.min(1, win.scrollY / max);
+        if (pct > S.stim.scrollMax) S.stim.scrollMax = Math.round(pct*100)/100;
+      }
+    }, {passive:true});
+
+    var v = doc.getElementById('stimVideo');
+    if (v && isVid){
+      var readDur = function(){
+        if (isFinite(v.duration) && v.duration > 0) S.stim.vidDuration = Math.round(v.duration*10)/10;
+      };
+      readDur();                                        // 이미 로드된 경우 대비
+      v.addEventListener('loadedmetadata', readDur);
+      v.addEventListener('durationchange', readDur);
+      v.addEventListener('timeupdate', function(){ covered[Math.floor(v.currentTime)] = 1; });
+      v.addEventListener('play',    function(){ S.stim.vidPlay++; });
+      v.addEventListener('pause',   function(){ S.stim.vidPause++; });
+      v.addEventListener('seeking', function(){ S.stim.vidSeek++; });
+      v.addEventListener('ended',   function(){ S.stim.vidEnded++; });
+    }
+  };
+
+  var timer = setInterval(function(){
+    var elapsed = (Date.now() - enter)/1000;
+    var ok = false, msg = '';
+
+    if (isVid){
+      var dur = S.stim.vidDuration;
+      S.stim.vidCovered = Object.keys(covered).length;
+      if (dur){
+        var need = Math.ceil(dur * VIDEO_COVER_RATIO);
+        ok = S.stim.vidCovered >= need;
+        msg = ok ? '' : '영상을 끝까지 보시면 계속할 수 있습니다.';
+      } else {
+        msg = '영상을 불러오는 중입니다.';
+      }
+    } else {
+      ok = elapsed >= MIN_TEXT_SEC;
+      msg = ok ? '' : '페이지를 충분히 살펴봐 주세요. ' + Math.ceil(MIN_TEXT_SEC - elapsed) + '초';
+    }
+
+    if (!ok && elapsed >= HARD_OVERRIDE_SEC){ ok = true; S.stim.override = true; msg = ''; }
+
+    if (ok && !ready){
+      ready = true;
+      btn.disabled = false;
+      hint.textContent = '다 보셨으면 계속 진행해 주세요. 이후에는 페이지를 다시 볼 수 없습니다.';
+    } else if (!ready){
+      hint.textContent = msg;
+    }
+  }, 500);
+
+  btn.onclick = function(){
+    clearInterval(timer);
+    S.stim.dwellMs = Date.now() - enter;
+    if (S.stim.vidDuration) S.stim.vidCovered = Object.keys(covered).length;
+    document.body.classList.remove('stim-mode');
+    frame.src = 'about:blank';
+    idx++;
+    render();
+  };
+}
+
+/* ── 조건 배정 ─────────────────────────────────────────────────── */
+
+function assignCondition(cb){
+  var fallback = function(reason){
+    S.cond = CONDITIONS[Math.floor(Math.random()*CONDITIONS.length)];
+    S.assignMethod = 'local-random:' + reason;
+    cb();
+  };
+
+  if (!ENDPOINT || ENDPOINT.indexOf('http') !== 0) return fallback('no-endpoint');
+
+  var done = false;
+  var timeout = setTimeout(function(){ if(!done){ done = true; fallback('timeout'); } }, 6000);
+
+  fetch(ENDPOINT + '?action=assign&pid=' + encodeURIComponent(S.pid))
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if (done) return;
+      done = true; clearTimeout(timeout);
+      var found = CONDITIONS.filter(function(c){ return c.id === j.condition; })[0];
+      if (found){ S.cond = found; S.assignMethod = 'server-balanced'; cb(); }
+      else fallback('bad-response');
+    })
+    .catch(function(){ if(!done){ done = true; clearTimeout(timeout); fallback('fetch-error'); } });
+}
+
+/* ── 제출 ──────────────────────────────────────────────────────── */
+
+function buildPayload(){
+  var d = {
+    pid: S.pid,
+    condition: S.cond.id,
+    modality: S.cond.modality,
+    price_cond: S.cond.price,
+    source_cond: S.cond.source,
+    assignMethod: S.assignMethod,
+    startedAt: new Date(S.startedAt).toISOString(),
+    submittedAt: new Date().toISOString(),
+    totalSec: Math.round((Date.now()-S.startedAt)/1000),
+    stim_dwell_sec: Math.round(S.stim.dwellMs/1000),
+    stim_scroll_max: S.stim.scrollMax,
+    stim_override: S.stim.override ? 1 : 0,
+    vid_duration: S.stim.vidDuration,
+    vid_covered_sec: S.stim.vidCovered,
+    vid_cover_ratio: S.stim.vidDuration ? Math.round(S.stim.vidCovered/S.stim.vidDuration*100)/100 : '',
+    vid_play: S.stim.vidPlay, vid_pause: S.stim.vidPause,
+    vid_seek: S.stim.vidSeek, vid_ended: S.stim.vidEnded,
+    qual_order: S.qualOrder.join('|'),
+    page_times: JSON.stringify(S.pageTimes),
+    screen: screen.width + 'x' + screen.height,
+    viewport: window.innerWidth + 'x' + window.innerHeight,
+    ua: navigator.userAgent
+  };
+  Object.keys(S.answers).forEach(function(k){ d[k] = S.answers[k]; });
+  return d;
+}
+
+function post(body){
+  return fetch(ENDPOINT, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},  // preflight 회피
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); });
+}
+
+function submit(){
+  var payload = buildPayload();
+  try { localStorage.setItem('beef_backup_'+S.pid, JSON.stringify(payload)); } catch(e){}
+
+  app.innerHTML = '<h1 class="title">응답을 저장하고 있습니다</h1>'+
+                  '<p class="lead">창을 닫지 말고 잠시만 기다려 주세요.</p>';
+
+  var tries = 0;
+  (function attempt(){
+    tries++;
+    post({type:'response', data:payload})
+      .then(function(j){
+        if (!j.ok) throw new Error(j.error||'server');
+        try { localStorage.removeItem('beef_backup_'+S.pid); } catch(e){}
+        showEnd(null, true);
+      })
+      .catch(function(){
+        if (tries < 3) return setTimeout(attempt, 1500 * tries);
+        showRecovery(payload);
+      });
+  })();
+}
+
+function showRecovery(payload){
+  app.innerHTML =
+    '<h1 class="title">응답을 보내지 못했습니다</h1>'+
+    '<p class="lead">인터넷 연결을 확인한 뒤 다시 보내기를 눌러 주세요. '+
+    '계속 안 되면 아래 내용을 복사해 <strong>bibionidae@ajou.ac.kr</strong> 로 보내주시면 됩니다.</p>'+
+    '<div class="nav"><button class="btn" id="retry">다시 보내기</button>'+
+    '<button class="btn ghost" id="copy">응답 내용 복사</button></div>'+
+    '<textarea rows="6" id="dump" style="margin-top:22px;font-size:12px">'+
+    esc(JSON.stringify(payload))+'</textarea>';
+
+  document.getElementById('retry').onclick = function(){ submit(); };
+  document.getElementById('copy').onclick = function(){
+    var t = document.getElementById('dump'); t.select(); document.execCommand('copy');
+    this.textContent = '복사했습니다';
+  };
+}
+
+function showEnd(message, success){
+  S.finished = true;
+  document.body.classList.remove('stim-mode');
+  bar.style.width = '100%';
+
+  if (!success){
+    app.innerHTML = '<h1 class="title">설문을 종료합니다</h1><div class="lead"><p>'+esc(message)+'</p></div>';
+    return;
+  }
+
+  app.innerHTML =
+    '<h1 class="title">참여해 주셔서 감사합니다</h1>'+
+    '<div class="lead">'+
+    '<p>본 연구는 온라인 식품을 구매할 때 인텔리전트 패키징의 모달리티를 어떤 방식으로 제시하느냐에 따라 '+
+    '소비자의 기대품질이 어떻게 달라지는지를 알아보기 위한 것입니다.</p>'+
+    '<p>연구에 사용된 쇼핑몰과 상품 페이지는 실험을 위해 제작된 가상의 자료입니다. 제시된 인증마크와 관련 정보는 '+
+    '실재하지 않으며, 이미지와 영상 일부는 AI로 생성되었습니다. 실제 판매 중인 상품이나 업체와는 관련이 없습니다.</p>'+
+    '<p>응답자마다 서로 다른 형태의 페이지를 보셨기 때문에, 이 설문을 공유하실 경우 '+
+    '<strong>내용에 대한 설명은 삼가 주시면</strong> 감사하겠습니다.</p>'+
+    '</div>'+
+    '<p class="meta">황지선 (아주대학교) · 행동면역체계 기반 지능형 패키징의 소비자 안심 기제 정립: '+
+    'EEG 및 시선 추적 멀티모달 분석 (S-2026-A0403-00219) · 문의 bibionidae@ajou.ac.kr</p>'+
+    '<section class="q">'+
+    '<div class="q-text">커피 기프티콘을 원하시면 받으실 휴대폰 번호를 남겨주세요.'+
+    '<span class="q-note">번호는 응답 내용과 분리된 별도 시트에 저장되며, 기프티콘 발송 후 폐기됩니다. '+
+    '원하지 않으시면 비워두고 완료하셔도 됩니다.</span></div>'+
+    '<input type="tel" id="phone" placeholder="010-0000-0000" autocomplete="tel"></section>'+
+    '<div class="nav"><button class="btn" id="sendPhone">설문 완료하기</button>'+
+    '<span class="hint" id="phoneHint"></span></div>';
+
+  document.getElementById('sendPhone').onclick = function(){
+    var v = document.getElementById('phone').value.trim();
+    var btn = this;
+    btn.disabled = true;
+    var finish = function(){
+      S.finished = true;
+      app.innerHTML = '<h1 class="title">응답이 저장되었습니다</h1>'+
+                      '<p class="lead">창을 닫으셔도 됩니다. 참여해 주셔서 감사합니다.</p>';
+    };
+    if (!v) return finish();
+    post({type:'phone', phone:v}).then(finish).catch(function(){
+      btn.disabled = false;
+      document.getElementById('phoneHint').textContent = '전송에 실패했습니다. 다시 눌러 주세요.';
+      document.getElementById('phoneHint').className = 'hint alert';
+    });
+  };
+}
+
+/* ── 시작 ──────────────────────────────────────────────────────── */
+
+S.pid = uid();
+assignCondition(function(){ render(); });
+
+window.addEventListener('beforeunload', function(e){
+  if (!S.finished && idx > 0){ e.preventDefault(); e.returnValue = ''; }
+});
+</script>
+</body>
+</html>
