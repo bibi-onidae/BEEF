@@ -24,3 +24,6 @@
 
 - cond8.html : video_low_self<br>
   https://bibi-onidae.github.io/BEEF/8VLS.html
+
+- SURVEY
+  https://bibi-onidae.github.io/BEEF/survey.html
