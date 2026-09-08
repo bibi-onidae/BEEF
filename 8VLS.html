@@ -78,15 +78,22 @@
   .videobox video{width:100%;display:block;background:#000;}
   .video-caption{font-size:13.5px;color:var(--ink-3);padding:10px 2px 0;}
 
-  .vctrl{display:flex;align-items:center;gap:11px;height:40px;padding:0 12px;background:#1b1d1f;user-select:none;}
+  .videobox{position:relative;}
+  .vctrl{position:absolute;left:0;right:0;bottom:0;z-index:2;
+    display:flex;align-items:center;gap:11px;height:46px;padding:0 12px 2px;
+    background:linear-gradient(to top,rgba(0,0,0,.65),rgba(0,0,0,.28) 60%,rgba(0,0,0,0));
+    opacity:0;transition:opacity .22s ease;pointer-events:none;user-select:none;}
+  .videobox.ctrl-on .vctrl{opacity:1;pointer-events:auto;}
   .vctrl button{width:24px;height:24px;flex:0 0 24px;padding:0;border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:3px;}
-  .vctrl button svg{width:15px;height:15px;fill:#fff;display:block;}
+  .vctrl button svg{width:15px;height:15px;fill:#fff;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
   .vctrl button:focus-visible,.vtrack:focus-visible{outline:2px solid #fff;outline-offset:2px;}
   .vtrack{position:relative;flex:1;height:20px;display:flex;align-items:center;cursor:pointer;touch-action:none;}
-  .vrail{position:absolute;left:0;right:0;height:4px;border-radius:2px;background:rgba(255,255,255,.25);}
-  .vfill{position:absolute;left:0;height:4px;border-radius:2px;background:var(--brand);width:0;}
-  .vknob{position:absolute;left:0;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#fff;}
-  .vtime{font-size:12px;color:#ced4da;font-variant-numeric:tabular-nums;letter-spacing:.2px;flex:0 0 auto;}
+  .vrail{position:absolute;left:0;right:0;height:3px;border-radius:2px;background:rgba(255,255,255,.35);}
+  .vfill{position:absolute;left:0;height:3px;border-radius:2px;background:#fff;width:0;}
+  .vknob{position:absolute;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.45);transform:scale(0);transition:transform .15s ease;}
+  .videobox.ctrl-on .vknob{transform:scale(1);}
+  .vtime{font-size:12px;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:.2px;flex:0 0 auto;text-shadow:0 1px 2px rgba(0,0,0,.5);}
 
   .donebox{margin-top:400px;padding:0;}
   .donebox p{font-size:15.5px;color:var(--ink-2);line-height:1.85;max-width:62ch;margin-bottom:12px;}
@@ -258,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var video = document.getElementById('stimVideo');
   if (!video) return;
 
+  var box     = video.closest('.videobox');
   var playBtn = document.getElementById('vPlay');
   var track   = document.getElementById('vTrack');
   var fill    = document.getElementById('vFill');
@@ -269,6 +277,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var dragging = false;
   var userPaused = false;
+  var hideTimer = null;
 
   function fmt(t){
     if (!isFinite(t) || t < 0) t = 0;
@@ -289,6 +298,26 @@ document.addEventListener('DOMContentLoaded', function () {
     playBtn.innerHTML = video.paused ? ICON_PLAY : ICON_PAUSE;
     playBtn.setAttribute('aria-label', video.paused ? '재생' : '일시정지');
   }
+
+  // ---- 재생바 노출 / 자동 숨김 ----
+  function showCtrl(){
+    box.classList.add('ctrl-on');
+    clearTimeout(hideTimer);
+    if (!video.paused) hideTimer = setTimeout(hideCtrl, 2200);
+  }
+  function hideCtrl(){
+    if (video.paused || dragging) return;   // 멈춰 있거나 바를 잡고 있으면 유지
+    box.classList.remove('ctrl-on');
+  }
+
+  box.addEventListener('mouseenter', showCtrl);
+  box.addEventListener('mousemove', showCtrl);
+  box.addEventListener('mouseleave', function () {
+    clearTimeout(hideTimer);
+    hideCtrl();
+  });
+  box.addEventListener('touchstart', showCtrl, { passive: true });
+  box.addEventListener('focusin', showCtrl);
 
   function seekTo(clientX){
     var d = video.duration;
@@ -316,31 +345,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
   track.addEventListener('pointerdown', function (e) {
     dragging = true;
+    clearTimeout(hideTimer);
     if (track.setPointerCapture) track.setPointerCapture(e.pointerId);
     seekTo(e.clientX);
   });
   track.addEventListener('pointermove', function (e) {
     if (dragging) seekTo(e.clientX);
   });
-  function endDrag(){ dragging = false; }
+  function endDrag(){ dragging = false; showCtrl(); }
   track.addEventListener('pointerup', endDrag);
   track.addEventListener('pointercancel', endDrag);
 
   track.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowRight') { nudge(5); e.preventDefault(); }
-    else if (e.key === 'ArrowLeft') { nudge(-5); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { nudge(5); showCtrl(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft') { nudge(-5); showCtrl(); e.preventDefault(); }
     else if (e.key === 'Home') { video.currentTime = 0; render(); e.preventDefault(); }
     else if (e.key === 'End' && isFinite(video.duration)) { video.currentTime = video.duration; render(); e.preventDefault(); }
   });
 
   video.addEventListener('loadedmetadata', render);
   video.addEventListener('timeupdate', function () { if (!dragging) render(); });
-  video.addEventListener('play', setIcon);
-  video.addEventListener('pause', setIcon);
-  video.addEventListener('ended', setIcon);
+  video.addEventListener('play', function () { setIcon(); showCtrl(); });
+  video.addEventListener('pause', function () { setIcon(); showCtrl(); });
+  video.addEventListener('ended', function () { setIcon(); showCtrl(); });
 
   setIcon();
   render();
+  showCtrl();
 
   var observer = new IntersectionObserver(function (entries) {
     entries.forEach(function (entry) {
@@ -354,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   observer.observe(video);
 });
-
 </script>
+
 </body>
 </html>
